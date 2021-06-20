@@ -1,0 +1,3145 @@
+VMEMBER NAME  CALCAAID
+V       IDENTIFICATION DIVISION.
+V
+V       PROGRAM-ID. D18PGM3.
+V
+V       DATA DIVISION.
+V
+V       WORKING-STORAGE SECTION.
+V
+V            COPY D18MPS1.
+V
+V            COPY DFHAID.
+V
+V       01 WS-MSG           PIC X(25).
+V
+V       01 WS-COMMAREA.
+V
+V          10 WS-COMM       PIC X(03).
+V
+V       LINKAGE SECTION.
+V
+V       01 DFHCOMMAREA.
+V
+V          10 LS-COMM       PIC X(03).
+V
+V       PROCEDURE DIVISION.
+V
+V       1000-MAIN-PARA.
+V
+V            MOVE DFHCOMMAREA
+V
+V              TO WS-COMMAREA.
+V
+V            IF EIBCALEN = 0 THEN
+V
+V               PERFORM 1000-CALEN-ZERO
+V
+V            ELSE
+V
+V               PERFORM 1000-CALEN-NONZERO
+V
+V            END-IF.
+V
+V            PERFORM 1000-END-PARA.
+V
+V       1000-CALEN-ZERO.
+V
+V            MOVE LOW-VALUES
+V
+V              TO CALCMAPO CALCMAPI.
+V
+V            PERFORM 1000-CALC-SEND.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            PERFORM 1000-RETURN-TRANS.
+V
+V       1000-CALEN-NONZERO.
+V
+V            EXEC CICS HANDLE AID
+V
+V                 PF2(1000-ADD-PARA)
+V
+V                 PF4(1000-SUB-PARA)
+V
+V                 PF3(1000-END-PARA)
+V
+V                 PF5(1000-CALEN-ZERO)
+V
+V                 ANYKEY(1000-ERROR-PARA)
+V
+V            END-EXEC.
+V
+V            PERFORM 1000-CALC-RECEIVE.
+V
+V       ZZZZ-PARA.
+V
+V            IF EIBAID = DFHPF1 THEN
+V
+V               PERFORM 1000-ADD-PARA
+V
+V            IF EIBAID = DFHPF2 THEN
+V
+V               PERFORM 1000-SUB-PARA
+V
+V            ELSE IF EIBAID = DFHPF3 THEN
+V
+V               PERFORM 1000-END-PARA
+V
+V            END-IF.
+V
+V       1000-CALC-SEND.
+V
+V      *     EXEC CICS SEND CONTROL
+V
+V      *          ERASE
+V
+V      *     END-EXEC.
+V
+V            MOVE -1
+V
+V              TO NUM1L.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('CALCMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V                 CURSOR
+V
+V                 ERASE
+V
+V            END-EXEC.
+V
+V       1000-MSG-SEND.
+V
+V            MOVE 'PRESS: F2->ADD; F4->SUB; F5-> REFRESH; F3->EXIT'
+V
+V              TO INFOO.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('MSGMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V            END-EXEC.
+V
+V       1000-CALC-RECEIVE.
+V
+V            EXEC CICS RECEIVE
+V
+V                 MAP('CALCMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V            END-EXEC.
+V
+V       1000-ADD-PARA.
+V
+V            COMPUTE RESO = NUM1I + NUM2I.
+V
+V            PERFORM 1000-CALC-SEND.
+V
+V            MOVE 'ADDITION IS SUCCESSFUL'
+V
+V              TO MSGO.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            PERFORM 1000-RETURN-TRANS.
+V
+V       1000-SUB-PARA.
+V
+V            COMPUTE RESO = NUM1I - NUM2I.
+V
+V            PERFORM 1000-CALC-SEND.
+V
+V            MOVE 'SUBTRACT IS SUCCESSFUL'
+V
+V              TO MSGO.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            PERFORM 1000-RETURN-TRANS.
+V
+V       1000-ERROR-PARA.
+V
+V            MOVE 'INCORRECT KEY PRESSED!'
+V
+V              TO MSGO.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            PERFORM 1000-RETURN-TRANS.
+V
+V       1000-RETURN-TRANS.
+V
+V            MOVE 'RET'
+V
+V              TO WS-COMM.
+V
+V            EXEC CICS RETURN
+V
+V                 TRANSID('D181')
+V
+V                 COMMAREA(WS-COMMAREA)
+V
+V                 LENGTH(LENGTH OF WS-COMMAREA)
+V
+V            END-EXEC.
+V
+V       1000-END-PARA.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('BYEMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V                 ERASE
+V
+V            END-EXEC.
+V
+V            EXEC CICS
+V
+V                 RETURN
+V
+V            END-EXEC.
+V
+VMEMBER NAME  COMPJCL1
+V//CAPGD18D JOB MSGLEVEL=(1,1),NOTIFY=&SYSUID
+V
+V//PLIB    JCLLIB ORDER=(MATE1.PROCLIB)
+V
+V//*
+V
+V//*  COMPILE A COBOL + CICS PROGRAM
+V
+V//*
+V
+V//CICSCOB  EXEC CICSCOBC,
+V
+V//             COPYLIB=CAPGD18.COPYLIB,        <= COPYBOOK LIBRARY
+V
+V//             SRCLIB=CAPGD18.CICS.SRCLIB,     <= SOURCE LIBRARY
+V
+V//             MEMBER=D18PGM1                 <= SOURCE MEMBER
+V
+VMEMBER NAME  DATETIME
+V       IDENTIFICATION DIVISION.
+V
+V       PROGRAM-ID. D18PGM1.
+V
+V       DATA DIVISION.
+V
+V       WORKING-STORAGE SECTION.
+V
+V            COPY D18MPS1.
+V
+V       01 WS-SYSDATE      PIC S9(15) COMP-3.
+V
+V       01 WS-DATE         PIC  X(10).
+V
+V       01 WS-TIME         PIC  X(08).
+V
+V       01 WS-COMMAREA.
+V
+V          10 WS-COMM      PIC  X(05).
+V
+V       LINKAGE SECTION.
+V
+V       01 DFHCOMMAREA.
+V
+V          10 LS-COMM      PIC  X(05).
+V
+V       PROCEDURE DIVISION.
+V
+V       1000-MAIN-PARA.
+V
+V            MOVE LOW-VALUES
+V
+V              TO WELMAPO  MSGMAPO.
+V
+V            MOVE DFHCOMMAREA
+V
+V              TO WS-COMMAREA.
+V
+V            PERFORM 1000-DATE-CALC.
+V
+V            PERFORM 1000-DATE-SEND.
+V
+V            PERFORM 1000-NAME-SEND.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            PERFORM 1000-END-TRANS.
+V
+V       1000-DATE-CALC.
+V
+V            EXEC CICS ASKTIME
+V
+V                 ABSTIME(WS-SYSDATE)
+V
+V            END-EXEC.
+V
+V            EXEC CICS FORMATTIME
+V
+V                 ABSTIME(WS-SYSDATE)
+V
+V                 YYYYMMDD(WS-DATE)
+V
+V                 DATESEP('/')
+V
+V                 TIME(WS-TIME)
+V
+V                 TIMESEP(':')
+V
+V            END-EXEC.
+V
+V       1000-DATE-SEND.
+V
+V            MOVE WS-DATE
+V
+V              TO SDATEO.
+V
+V            MOVE WS-TIME
+V
+V              TO STIMEO.
+V
+V            EXEC CICS SEND
+V
+V                 MAPSET('D18MPS1')
+V
+V                 MAP('WELMAP')
+V
+V                 ERASE
+V
+V            END-EXEC.
+V
+V       1000-NAME-SEND.
+V
+V            MOVE WS-COMM
+V
+V              TO NAMEO.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('NAMMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V            END-EXEC.
+V
+V       1000-MSG-SEND.
+V
+V            MOVE "CURRENT DATE & TIME DISPLAYED"
+V
+V              TO MSGO.
+V
+V            EXEC CICS SEND
+V
+V                 MAPSET('D18MPS1')
+V
+V                 MAP('MSGMAP')
+V
+V            END-EXEC.
+V
+V       1000-END-TRANS.
+V
+V            EXEC CICS RETURN
+V
+V            END-EXEC.
+V
+VMEMBER NAME  DB2BIND
+V//CAPGD18D JOB MSGLEVEL=(1,1),NOTIFY=&SYSUID
+V
+V//*
+V
+V//*  DB2 BIND JCL
+V
+V//*
+V
+V//BIND     EXEC PGM=IKJEFT01
+V
+V//STEPLIB  DD  DISP=SHR,DSN=DSNA10.DBAG.SDSNEXIT
+V
+V//         DD  DISP=SHR,DSN=DSNA10.SDSNLOAD
+V
+V//DBRMLIB  DD  DSN=CAPGD18.DBRMLIB,DISP=SHR
+V
+V//SYSPRINT DD  SYSOUT=*
+V
+V//SYSTSPRT DD  SYSOUT=*
+V
+V//SYSUDUMP DD  SYSOUT=*
+V
+V//SYSTSIN  DD  *
+V
+VDSN SYSTEM (DBAG   )
+V
+VBIND  MEMBER    (D18PGM1,D18PGM2,D18PGM3,D18PGM5) -
+V
+V      PLAN      (CAPGD18A ) -
+V
+V      ACTION    (REP)       -
+V
+V      ISOLATION (CS)        -
+V
+V      VALIDATE  (BIND)      -
+V
+V      RELEASE   (COMMIT)    -
+V
+V      OWNER     (CAPGD18 )  -
+V
+V      QUALIFIER (CAPGD18 )  -
+V
+V      ENCODING  (1047)
+V
+VEND
+V
+V/*
+V
+VMEMBER NAME  DB2CICS
+V//CAPGD18D JOB MSGLEVEL=(1,1),NOTIFY=&SYSUID
+V
+V//PLIB    JCLLIB ORDER=(MATE1.PROCLIB)
+V
+V//*
+V
+V//*  COBOL + DB2 + CICS COMPILE JCL
+V
+V//*
+V
+V//DBONL   EXEC DB2CICSC,
+V
+V//             COPYLIB=CAPGD18.COPYLIB,        <= COPYBOOK LIBRARY
+V
+V//             DCLGLIB=CAPGD18.DCLGEN.COBOL,   <= DCLGEN LIBRARY
+V
+V//             DBRMLIB=CAPGD18.DBRMLIB,        <= DBRM LIBRARY
+V
+V//             SRCLIB=CAPGD18.CICS.SRCLIB,     <= SOURCE LIBRARY
+V
+V//             MEMBER=D18PGM5                  <= SOURCE MEMBER
+V
+VMEMBER NAME  D18MPS1
+VD18MPS1 DFHMSD TYPE=&&SYSPARM,                                         X
+V
+V               MODE=INOUT,                                             X
+V
+V               TIOAPFX=YES,                                            X
+V
+V               LANG=COBOL,                                             X
+V
+V               STORAGE=AUTO,                                           X
+V
+V               CTRL=(FREEKB,FRSET),                                    X
+V
+V               MAPATTS=(COLOR,HILIGHT,VALIDN),                         X
+V
+V               DSATTS=(COLOR,HILIGHT,VALIDN)
+V
+VWELMAP  DFHMDI SIZE=(05,80),                                           X
+V
+V               LINE=1,                                                 X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(01,30),                                            X
+V
+V               INITIAL='CAPGEMINI INDIA',                              X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(02,30),                                            X
+V
+V               INITIAL='***************',                              X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(04,20),                                            X
+V
+V               INITIAL='EMPLOYEE DATA MANAGEMENT PORTAL',              X
+V
+V               LENGTH=31,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(05,20),                                            X
+V
+V               INITIAL='*******************************',              X
+V
+V               LENGTH=31,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(04,60),                                            X
+V
+V               INITIAL='DATE : ',                                      X
+V
+V               LENGTH=07,ATTRB=(PROT,NORM)
+V
+VSDATE   DFHMDF POS=(04,68),                                            X
+V
+V               INITIAL='----------',                                   X
+V
+V               LENGTH=10,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(05,60),                                            X
+V
+V               INITIAL='TIME : ',                                      X
+V
+V               LENGTH=07,ATTRB=(PROT,NORM)
+V
+VSTIME   DFHMDF POS=(05,68),                                            X
+V
+V               INITIAL='--------',                                     X
+V
+V               LENGTH=08,ATTRB=(PROT,NORM)
+V
+VNAMMAP  DFHMDI SIZE=(14,80),                                           X
+V
+V               LINE=06,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(06,20),                                            X
+V
+V               INITIAL='ENTER YOUR NAME : ',                           X
+V
+V               LENGTH=18,ATTRB=(PROT,NORM)
+V
+VNAME    DFHMDF POS=(06,39),                                            X
+V
+V               INITIAL='~~~~~~~~~~~~~~~',                              X
+V
+V               LENGTH=15,ATTRB=(UNPROT,NORM,IC)
+V
+VCHRISM  DFHMDI SIZE=(14,80),                                           X
+V
+V               LINE=06,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(06,20),                                            X
+V
+V               INITIAL='ENTER DATA  :  ',                              X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+VCOL1    DFHMDF POS=(06,39),                                            X
+V
+V               INITIAL='~~~~~~~~~~',                                   X
+V
+V               LENGTH=10,ATTRB=(UNPROT,NORM,IC,NUM),                   X
+V
+V               PICIN='9(8)V9(2)'
+V
+VMSGMAP  DFHMDI SIZE=(05,80),                                           X
+V
+V               LINE=20,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(01,10),                                            X
+V
+V               INITIAL='MESSAGE : ',                                   X
+V
+V               LENGTH=10,ATTRB=(PROT,NORM)
+V
+VMSG     DFHMDF POS=(01,21),                                            X
+V
+V               INITIAL='----------------------------------------',     X
+V
+V               LENGTH=40,ATTRB=(UNPROT,NORM)
+V
+VINFO    DFHMDF POS=(03,15),                                            X
+V
+V               INITIAL='----------------------------------------',     X
+V
+V               LENGTH=50,ATTRB=(UNPROT,NORM)
+V
+VBYEMAP  DFHMDI SIZE=(05,80),                                           X
+V
+V               LINE=20,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(01,30),                                            X
+V
+V               INITIAL='THANK YOU !!!!',                               X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+VCALCMAP DFHMDI SIZE=(14,80),                                           X
+V
+V               LINE=06,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(01,35),                                            X
+V
+V               INITIAL='  CALCULATOR   ',                              X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(02,35),                                            X
+V
+V               INITIAL='  **********   ',                              X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(04,30),                                            X
+V
+V               INITIAL='ENTER NUMBER 1  : ',                           X
+V
+V               LENGTH=18,ATTRB=(PROT,NORM)
+V
+VNUM1    DFHMDF POS=(04,49),                                            X
+V
+V               INITIAL='~~~',VALIDN=MUSTFILL,                          X
+V
+V               LENGTH=03,ATTRB=(UNPROT,NORM,IC,NUM,FSET),              X
+V
+V               PICIN='9(3)'
+V
+V        DFHMDF POS=(04,53),                                            X
+V
+V               LENGTH=01,ATTRB=(ASKIP,NORM)
+V
+V        DFHMDF POS=(06,30),                                            X
+V
+V               INITIAL='ENTER NUMBER 2  : ',                           X
+V
+V               LENGTH=18,ATTRB=(PROT,NORM)
+V
+VNUM2    DFHMDF POS=(06,49),                                            X
+V
+V               INITIAL='~~~',VALIDN=MUSTENTER,                         X
+V
+V               LENGTH=03,ATTRB=(UNPROT,NORM,NUM,FSET),                 X
+V
+V               PICIN='9(3)'
+V
+V        DFHMDF POS=(06,53),                                            X
+V
+V               LENGTH=01,ATTRB=(ASKIP,NORM)
+V
+V        DFHMDF POS=(08,30),                                            X
+V
+V               INITIAL='     RESULT     : ',                           X
+V
+V               LENGTH=18,ATTRB=(PROT,NORM)
+V
+VRES     DFHMDF POS=(08,49),                                            X
+V
+V               INITIAL='~~~~',                                         X
+V
+V               LENGTH=04,ATTRB=(UNPROT,NORM,NUM),PICOUT='ZZ9(2)'
+V
+VEMPMAP  DFHMDI SIZE=(14,80),                                           X
+V
+V               LINE=06,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(06,20),                                            X
+V
+V               INITIAL='EMPLOYEE ID   : ',                             X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+VEMPID   DFHMDF POS=(06,37),                                            X
+V
+V               INITIAL='~~~~~',                                        X
+V
+V               LENGTH=05,ATTRB=(UNPROT,NORM,IC)
+V
+V        DFHMDF POS=(06,43),                                            X
+V
+V               LENGTH=01,ATTRB=ASKIP
+V
+V        DFHMDF POS=(08,20),                                            X
+V
+V               INITIAL='EMPLOYEE NAME : ',                             X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+VENAME   DFHMDF POS=(08,37),                                            X
+V
+V               INITIAL='~~~~~~~~~~~~~~~',                              X
+V
+V               LENGTH=15,ATTRB=(UNPROT,NORM)
+V
+VEMPLST  DFHMDI SIZE=(14,80),                                           X
+V
+V               LINE=06,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(01,05),                                            X
+V
+V               INITIAL='LIST OF EMPLOYEES',                            X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(02,05),                                            X
+V
+V               INITIAL='~~~~~~~~~~~~~~~~~',                            X
+V
+V               LENGTH=16,ATTRB=(UNPROT,NORM,IC)
+V
+V        DFHMDF POS=(03,02),                                            X
+V
+V               INITIAL='EMPID       NAME      ',                       X
+V
+V               LENGTH=30,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(04,02),                                            X
+V
+V               INITIAL='~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',               X
+V
+V               LENGTH=30,ATTRB=(PROT,NORM)
+V
+VEMPREC  DFHMDF POS=(05,01),                                            X
+V
+V               INITIAL='                                    ',         X
+V
+V               LENGTH=79,ATTRB=(UNPROT,NORM),OCCURS=9
+V
+VELIST   DFHMDI SIZE=(14,80),                                           X
+V
+V               LINE=06,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(01,25),                                            X
+V
+V               INITIAL='LIST OF EMPLOYEES',                            X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(02,25),                                            X
+V
+V               INITIAL='~~~~~~~~~~~~~~~~~',                            X
+V
+V               LENGTH=16,ATTRB=(UNPROT,NORM,IC)
+V
+V        DFHMDF POS=(03,20),                                            X
+V
+V               INITIAL='EMPID       NAME      ',                       X
+V
+V               LENGTH=30,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(04,20),                                            X
+V
+V               INITIAL='~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',               X
+V
+V               LENGTH=30,ATTRB=(PROT,NORM)
+V
+VEREC    DFHMDF POS=(05,01),                                            X
+V
+V               INITIAL='                                      ',       X
+V
+V               LENGTH=79,ATTRB=(PROT,NORM),OCCURS=9
+V
+VMENUMAP DFHMDI SIZE=(14,80),                                           X
+V
+V               LINE=06,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(03,25),                                            X
+V
+V               INITIAL='1. VIEW EMPLOYEE DETAILS  ',                   X
+V
+V               LENGTH=26,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(04,25),                                            X
+V
+V               INITIAL='2. ADD  EMPLOYEE DETAILS  ',                   X
+V
+V               LENGTH=26,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(05,25),                                            X
+V
+V               INITIAL='3. MODIFY EMPLOYEE DETAILS',                   X
+V
+V               LENGTH=26,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(06,25),                                            X
+V
+V               INITIAL='4. DELETE EMPLOYEE DETAILS',                   X
+V
+V               LENGTH=26,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(07,25),                                            X
+V
+V               INITIAL='5. EXIT',                                      X
+V
+V               LENGTH=07,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(10,15),                                            X
+V
+V               INITIAL='ENTER YOUR CHOICE : ',                         X
+V
+V               LENGTH=20,ATTRB=(PROT,NORM)
+V
+VCHOICE  DFHMDF POS=(10,36),                                            X
+V
+V               INITIAL='-',                                            X
+V
+V               LENGTH=01,ATTRB=(UNPROT,NORM,IC)
+V
+V        DFHMSD TYPE=FINAL
+V
+V        END
+V
+VMEMBER NAME  D18MPS2
+VD18MPS2 DFHMSD TYPE=&&SYSPARM,                                         X
+V
+V               MODE=INOUT,                                             X
+V
+V               TIOAPFX=YES,                                            X
+V
+V               LANG=COBOL,                                             X
+V
+V               STORAGE=AUTO,                                           X
+V
+V               CTRL=(FREEKB,FRSET),                                    X
+V
+V               MAPATTS=(COLOR,HILIGHT,VALIDN),                         X
+V
+V               DSATTS=(COLOR,HILIGHT,VALIDN)
+V
+VEMPMAP  DFHMDI SIZE=(24,80),                                           X
+V
+V               LINE=1,                                                 X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(01,30),                                            X
+V
+V               INITIAL='CAPGEMINI INDIA',                              X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(02,30),                                            X
+V
+V               INITIAL='***************',                              X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(04,20),                                            X
+V
+V               INITIAL='EMPLOYEE DATA MANAGEMENT PORTAL',              X
+V
+V               LENGTH=31,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(05,20),                                            X
+V
+V               INITIAL='*******************************',              X
+V
+V               LENGTH=31,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(06,20),                                            X
+V
+V               INITIAL='EMPLOYEE ID   : ',                             X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+VEID     DFHMDF POS=(06,37),                                            X
+V
+V               INITIAL='----------',                                   X
+V
+V               LENGTH=10,ATTRB=(UNPROT,NORM,NUM,FSET)
+V
+V        DFHMDF POS=(06,48),                                            X
+V
+V               LENGTH=01,ATTRB=ASKIP
+V
+V        DFHMDF POS=(08,20),                                            X
+V
+V               INITIAL='EMPLOYEE NAME : ',                             X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+VENAME   DFHMDF POS=(08,37),                                            X
+V
+V               INITIAL='---------------',                              X
+V
+V               LENGTH=15,ATTRB=(UNPROT,NORM,IC,FSET)
+V
+V        DFHMDF POS=(08,53),                                            X
+V
+V               LENGTH=01,ATTRB=ASKIP
+V
+V        DFHMDF POS=(10,20),                                            X
+V
+V               INITIAL='SALARY        : ',                             X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+VESAL    DFHMDF POS=(10,37),                                            X
+V
+V               INITIAL='--------',                                     X
+V
+V               LENGTH=08,ATTRB=(UNPROT,NORM,NUM,FSET),                 X
+V
+V               PICIN='9(6)V9(2)',PICOUT='9(6)V9(2)'
+V
+V        DFHMDF POS=(10,46),                                            X
+V
+V               LENGTH=01,ATTRB=ASKIP
+V
+V        DFHMDF POS=(12,20),                                            X
+V
+V               INITIAL='MOBILE NUMBER : ',                             X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+VEMOB    DFHMDF POS=(12,37),                                            X
+V
+V               INITIAL='----------',                                   X
+V
+V               LENGTH=10,ATTRB=(UNPROT,NORM,NUM,FSET)
+V
+V        DFHMDF POS=(12,48),                                            X
+V
+V               LENGTH=01,ATTRB=ASKIP
+V
+V        DFHMDF POS=(14,20),                                            X
+V
+V               INITIAL='TELEPHONE NO. : ',                             X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+VETEL    DFHMDF POS=(14,37),                                            X
+V
+V               INITIAL='----------',                                   X
+V
+V               LENGTH=10,ATTRB=(UNPROT,NORM,NUM,FSET)
+V
+V        DFHMDF POS=(14,48),                                            X
+V
+V               LENGTH=01,ATTRB=ASKIP
+V
+V        DFHMDF POS=(16,20),                                            X
+V
+V               INITIAL='AGE           : ',                             X
+V
+V               LENGTH=16,ATTRB=(PROT,NORM)
+V
+VEAGE    DFHMDF POS=(16,37),                                            X
+V
+V               INITIAL='--',                                           X
+V
+V               LENGTH=02,ATTRB=(UNPROT,NORM,NUM,FSET)
+V
+V        DFHMDF POS=(16,48),                                            X
+V
+V               LENGTH=01,ATTRB=PROT
+V
+V        DFHMDF POS=(20,10),                                            X
+V
+V               INITIAL='MESSAGE : ',                                   X
+V
+V               LENGTH=10,ATTRB=(PROT,NORM)
+V
+VEMSG    DFHMDF POS=(20,21),                                            X
+V
+V               INITIAL='----------------------------------------',     X
+V
+V               LENGTH=40,ATTRB=(UNPROT,NORM)
+V
+VMENUMAP DFHMDI SIZE=(24,80),                                           X
+V
+V               LINE=01,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(01,30),                                            X
+V
+V               INITIAL='CAPGEMINI INDIA',                              X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(02,30),                                            X
+V
+V               INITIAL='***************',                              X
+V
+V               LENGTH=15,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(04,20),                                            X
+V
+V               INITIAL='EMPLOYEE DATA MANAGEMENT PORTAL',              X
+V
+V               LENGTH=31,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(05,20),                                            X
+V
+V               INITIAL='*******************************',              X
+V
+V               LENGTH=31,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(08,25),                                            X
+V
+V               INITIAL='1. VIEW EMPLOYEE DETAILS  ',                   X
+V
+V               LENGTH=26,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(09,25),                                            X
+V
+V               INITIAL='2. ADD  EMPLOYEE DETAILS  ',                   X
+V
+V               LENGTH=26,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(10,25),                                            X
+V
+V               INITIAL='3. MODIFY EMPLOYEE DETAILS',                   X
+V
+V               LENGTH=26,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(11,25),                                            X
+V
+V               INITIAL='4. EXIT',                                      X
+V
+V               LENGTH=07,ATTRB=(PROT,NORM)
+V
+V        DFHMDF POS=(13,15),                                            X
+V
+V               INITIAL='ENTER YOUR CHOICE : ',                         X
+V
+V               LENGTH=20,ATTRB=(PROT,NORM)
+V
+VCHOICE  DFHMDF POS=(13,36),                                            X
+V
+V               INITIAL='-',                                            X
+V
+V               LENGTH=01,ATTRB=(UNPROT,NORM,IC)
+V
+V        DFHMDF POS=(20,10),                                            X
+V
+V               INITIAL='MESSAGE : ',                                   X
+V
+V               LENGTH=10,ATTRB=(PROT,NORM)
+V
+VMSG     DFHMDF POS=(20,21),                                            X
+V
+V               INITIAL='----------------------------------------',     X
+V
+V               LENGTH=40,ATTRB=(UNPROT,NORM)
+V
+VMSGMAP  DFHMDI SIZE=(05,80),                                           X
+V
+V               LINE=20,                                                X
+V
+V               COLUMN=01
+V
+V        DFHMDF POS=(01,10),                                            X
+V
+V               INITIAL='MESSAGE : ',                                   X
+V
+V               LENGTH=10,ATTRB=(PROT,NORM)
+V
+VMMSG    DFHMDF POS=(01,21),                                            X
+V
+V               INITIAL='----------------------------------------',     X
+V
+V               LENGTH=40,ATTRB=(UNPROT,NORM)
+V
+V        DFHMSD TYPE=FINAL
+V
+V        END
+V
+VMEMBER NAME  D18PGM1
+V       IDENTIFICATION DIVISION.
+V
+V       PROGRAM-ID. D18PGM1.
+V
+V
+V
+V      **************************************************************
+V
+V      * AUTHOR         : CHRISTY RAJ
+V
+V      * DATE WRITTEN   : 04 MAY 2021
+V
+V      * DEMO           : SELECT RECORD FROM EMP TABLE
+V
+V      * DB2 TABLE      : EMP
+V
+V      * EMPID
+V
+V      * EMPNAME
+V
+V      * SALARY
+V
+V      * PHONE
+V
+V      * TELNO
+V
+V      * AGE
+V
+V      **************************************************************
+V
+V
+V
+V       DATA DIVISION.
+V
+V       WORKING-STORAGE SECTION.
+V
+V           EXEC SQL
+V
+V                INCLUDE EMPDCL
+V
+V           END-EXEC.
+V
+V           EXEC SQL
+V
+V                INCLUDE SQLCA
+V
+V           END-EXEC.
+V
+V           COPY D18MPS2.
+V
+V
+V
+V       01 WS-EMPID            PIC  9(10).
+V
+V       01 WS-MOB              PIC  9(10).
+V
+V       01 WS-AGE              PIC  9(02).
+V
+V       01 WS-MSG              PIC  X(30).
+V
+V       01 WS-SYSDATE          PIC S9(15) COMP-3.
+V
+V       01 WS-RESP             PIC S9(08) COMP.
+V
+V       01 WS-SQLCODE          PIC +9(03) VALUE ZERO.
+V
+V
+V
+V       PROCEDURE DIVISION.
+V
+V       1000-MAIN-PARA.
+V
+V            MOVE LOW-VALUES
+V
+V              TO EMPMAPI EMPMAPO.
+V
+V            PERFORM 1000-EMPMAP-SEND.
+V
+V            PERFORM 1000-EMPMAP-RECEIVE.
+V
+V            PERFORM 1000-TABLE-SELECT.
+V
+V            PERFORM 1000-END-PGM.
+V
+V
+V
+V       1000-EMPMAP-SEND.
+V
+V            MOVE -1
+V
+V              TO EIDL.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('EMPMAP')
+V
+V                 MAPSET('D18MPS2')
+V
+V                 CURSOR
+V
+V                 ERASE
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-EMPMAP-RECEIVE.
+V
+V            EXEC CICS RECEIVE
+V
+V                 MAP('EMPMAP')
+V
+V                 MAPSET('D18MPS2')
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-TABLE-SELECT.
+V
+V            MOVE LOW-VALUES
+V
+V              TO DCLEMP.
+V
+V            MOVE EIDI
+V
+V              TO HV-EMPID.
+V
+V            EXEC SQL
+V
+V                 SELECT EMPNAME,
+V
+V                        SALARY,
+V
+V                        PHONE,
+V
+V                        TELNO,
+V
+V                        AGE
+V
+V                  INTO  :HV-EMPNAME,
+V
+V                        :HV-SALARY,
+V
+V                        :HV-PHONE,
+V
+V                        :HV-TELNO,
+V
+V                        :HV-AGE
+V
+V                  FROM  EMP
+V
+V                 WHERE  EMPID = :HV-EMPID
+V
+V            END-EXEC.
+V
+V            MOVE LOW-VALUES
+V
+V              TO EMSGO.
+V
+V            IF SQLCODE = 0  THEN
+V
+V               PERFORM 1000-DBTOMAP
+V
+V               MOVE 'EMPLOYEE DETAILS FETCHED !!!'
+V
+V                 TO EMSGO
+V
+V            ELSE
+V
+V               MOVE 'TABLE SELECT ERROR !'
+V
+V                 TO EMSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-EMPMAP-SEND.
+V
+V
+V
+V       1000-DBTOMAP.
+V
+V            MOVE EIDI
+V
+V              TO EIDO.
+V
+V            MOVE HV-EMPNAME-TEXT
+V
+V              TO ENAMEO.
+V
+V            MOVE HV-SALARY
+V
+V              TO ESALO.
+V
+V            MOVE HV-PHONE
+V
+V              TO WS-MOB.
+V
+V            MOVE WS-MOB
+V
+V              TO EMOBO.
+V
+V            MOVE HV-TELNO
+V
+V              TO ETELO.
+V
+V            MOVE HV-AGE
+V
+V              TO WS-AGE.
+V
+V            MOVE WS-AGE
+V
+V              TO EAGEO.
+V
+V
+V
+V       1000-END-PGM.
+V
+V            EXEC CICS RETURN
+V
+V                 TRANSID('D184')
+V
+V            END-EXEC.
+V
+VMEMBER NAME  D18PGM2
+V       IDENTIFICATION DIVISION.
+V
+V       PROGRAM-ID. D18PGM2.
+V
+V      **************************************************************
+V
+V      * AUTHOR         : CHRISTY RAJ
+V
+V      * DATE WRITTEN   : 04 MAY 2021
+V
+V      * DEMO           : INSERT RECORD INTO EMP TABLE
+V
+V      * DB2 TABLE      : EMP
+V
+V      * EMPID          : INTEGER
+V
+V      * EMPNAME        : VARCHAR
+V
+V      * SALARY         : DECIMAL(8,2)
+V
+V      * PHONE          : BIGINT
+V
+V      * TELNO          : NUMERIC(10)
+V
+V      * AGE            : SMALLINT
+V
+V      **************************************************************
+V
+V       DATA DIVISION.
+V
+V       WORKING-STORAGE SECTION.
+V
+V           EXEC SQL
+V
+V                INCLUDE EMPDCL
+V
+V           END-EXEC.
+V
+V           EXEC SQL
+V
+V                INCLUDE SQLCA
+V
+V           END-EXEC.
+V
+V           COPY D18MPS2.
+V
+V       01 WS-MSG              PIC  X(30).
+V
+V       01 WS-MOB              PIC  9(10).
+V
+V       01 WS-SYSDATE          PIC S9(15) COMP-3.
+V
+V       01 WS-RESP             PIC S9(08) COMP.
+V
+V       01 WS-SQLCODE          PIC +9(03) VALUE ZERO.
+V
+V       PROCEDURE DIVISION.
+V
+V       1000-MAIN-PARA.
+V
+V            MOVE LOW-VALUES
+V
+V              TO EMPMAPI EMPMAPO.
+V
+V            PERFORM 1000-EMPMAP-SEND.
+V
+V            PERFORM 1000-EMPMAP-RECEIVE.
+V
+V            PERFORM 1000-TABLE-INSERT.
+V
+V            PERFORM 1000-END-PGM.
+V
+V
+V
+V       1000-EMPMAP-SEND.
+V
+V            MOVE -1
+V
+V              TO ENAMEL.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('EMPMAP')
+V
+V                 MAPSET('D18MPS2')
+V
+V                 CURSOR
+V
+V                 ERASE
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-EMPMAP-RECEIVE.
+V
+V            EXEC CICS RECEIVE
+V
+V                 MAP('EMPMAP')
+V
+V                 MAPSET('D18MPS2')
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-TABLE-INSERT.
+V
+V            MOVE LOW-VALUES
+V
+V              TO DCLEMP.
+V
+V      *     MOVE EIDI
+V
+V      *       TO HV-EMPID.
+V
+V            MOVE ENAMEI
+V
+V              TO HV-EMPNAME-TEXT.
+V
+V            MOVE LENGTH OF HV-EMPNAME-TEXT
+V
+V              TO HV-EMPNAME-LEN.
+V
+V            MOVE ESALI
+V
+V              TO HV-SALARY.
+V
+V            MOVE EMOBI
+V
+V              TO WS-MOB.
+V
+V            MOVE WS-MOB
+V
+V              TO HV-PHONE.
+V
+V            MOVE ETELI
+V
+V              TO HV-TELNO.
+V
+V            MOVE EAGEI
+V
+V              TO HV-AGE.
+V
+V            EXEC SQL
+V
+V                 INSERT INTO EMP(EMPNAME,
+V
+V                                 SALARY,
+V
+V                                 PHONE,
+V
+V                                 TELNO,
+V
+V                                 AGE)
+V
+V                         VALUES (:HV-EMPNAME,
+V
+V                                 :HV-SALARY,
+V
+V                                 :HV-PHONE,
+V
+V                                 :HV-TELNO,
+V
+V                                 :HV-AGE)
+V
+V            END-EXEC.
+V
+V
+V
+V            MOVE LOW-VALUES
+V
+V              TO EMSGO.
+V
+V            IF SQLCODE = 0  THEN
+V
+V               MOVE 'DETAILS INSERTED INTO TABLE!'
+V
+V                 TO EMSGO
+V
+V            ELSE
+V
+V               MOVE 'TABLE INSERT ERROR !'
+V
+V                 TO EMSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-EMPMAP-SEND.
+V
+V
+V
+V       1000-END-PGM.
+V
+V            EXEC CICS RETURN
+V
+V                 TRANSID('D184')
+V
+V            END-EXEC.
+V
+VMEMBER NAME  D18PGM3
+V       IDENTIFICATION DIVISION.
+V
+V       PROGRAM-ID. D18PGM3.
+V
+V      **************************************************************
+V
+V      * AUTHOR         : CHRISTY RAJ
+V
+V      * DATE WRITTEN   : 04 MAY 2021
+V
+V      * DEMO           : UPDATE THE SELECTED RECORD
+V
+V      * DB2 TABLE      : EMP
+V
+V      * EMPID          : BIGINT
+V
+V      * EMPNAME        : VARCHAR(15)
+V
+V      * SALARY         : DECIMAL(8,2)
+V
+V      * PHONE          : BIGINT
+V
+V      * TELNO          : NUMERIC(10)
+V
+V      * AGE            : SMALLINT
+V
+V      **************************************************************
+V
+V       DATA DIVISION.
+V
+V       WORKING-STORAGE SECTION.
+V
+V           EXEC SQL
+V
+V                INCLUDE EMPDCL
+V
+V           END-EXEC.
+V
+V           EXEC SQL
+V
+V                INCLUDE SQLCA
+V
+V           END-EXEC.
+V
+V           COPY D18MPS2.
+V
+V       01 WS-AGE              PIC  9(02).
+V
+V       01 WS-MSG              PIC  X(30).
+V
+V       01 WS-MOB              PIC  9(10).
+V
+V       01 WS-SYSDATE          PIC S9(15) COMP-3.
+V
+V       01 WS-RESP             PIC S9(08) COMP.
+V
+V       01 WS-SQLCODE          PIC +9(03) VALUE ZERO.
+V
+V       PROCEDURE DIVISION.
+V
+V       1000-MAIN-PARA.
+V
+V            MOVE LOW-VALUES
+V
+V              TO EMPMAPI EMPMAPO.
+V
+V            PERFORM 1000-EMPMAP-SEND.
+V
+V            PERFORM 1000-EMPMAP-RECEIVE.
+V
+V            PERFORM 1000-TABLE-SELECT.
+V
+V            PERFORM 1000-END-PGM.
+V
+V
+V
+V       1000-EMPMAP-SEND.
+V
+V            MOVE -1
+V
+V              TO EIDL.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('EMPMAP')
+V
+V                 MAPSET('D18MPS2')
+V
+V                 CURSOR
+V
+V                 ERASE
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-EMPMAP-RECEIVE.
+V
+V            EXEC CICS RECEIVE
+V
+V                 MAP('EMPMAP')
+V
+V                 MAPSET('D18MPS2')
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-TABLE-SELECT.
+V
+V            MOVE LOW-VALUES
+V
+V              TO DCLEMP.
+V
+V            MOVE EIDI
+V
+V              TO HV-EMPID.
+V
+V            EXEC SQL
+V
+V                 SELECT EMPNAME,
+V
+V                        SALARY,
+V
+V                        PHONE,
+V
+V                        TELNO,
+V
+V                        AGE
+V
+V                  INTO  :HV-EMPNAME,
+V
+V                        :HV-SALARY,
+V
+V                        :HV-PHONE,
+V
+V                        :HV-TELNO,
+V
+V                        :HV-AGE
+V
+V                  FROM  EMP
+V
+V                 WHERE  EMPID = :HV-EMPID
+V
+V            END-EXEC.
+V
+V
+V
+V            MOVE LOW-VALUES
+V
+V              TO EMSGO.
+V
+V            IF SQLCODE = 0  THEN
+V
+V               PERFORM 1000-DBTOMAP
+V
+V               MOVE 'PROVIDE VALUES TO UPDATE !!!'
+V
+V                 TO EMSGO
+V
+V            ELSE
+V
+V               MOVE 'TABLE SELECT ERROR !'
+V
+V                 TO EMSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-EMPMAP-SEND.
+V
+V            PERFORM 1000-UPDATE-DATA.
+V
+V
+V
+V       1000-DBTOMAP.
+V
+V            MOVE EIDI
+V
+V              TO EIDO.
+V
+V            MOVE HV-EMPNAME-TEXT
+V
+V              TO ENAMEO.
+V
+V            MOVE HV-SALARY
+V
+V              TO ESALO.
+V
+V            MOVE HV-PHONE
+V
+V              TO WS-MOB.
+V
+V            MOVE WS-MOB
+V
+V              TO EMOBO.
+V
+V            MOVE HV-TELNO
+V
+V              TO ETELO.
+V
+V            MOVE HV-AGE
+V
+V              TO WS-AGE.
+V
+V            MOVE WS-AGE
+V
+V              TO EAGEO.
+V
+V
+V
+V       1000-MAPTODB.
+V
+V            MOVE EIDI
+V
+V              TO HV-EMPID.
+V
+V            MOVE ENAMEI
+V
+V              TO HV-EMPNAME-TEXT.
+V
+V            MOVE LENGTH OF HV-EMPNAME-TEXT
+V
+V              TO HV-EMPNAME-LEN.
+V
+V            MOVE ESALI
+V
+V              TO HV-SALARY.
+V
+V            MOVE EMOBI
+V
+V              TO HV-PHONE.
+V
+V            MOVE ETELI
+V
+V              TO HV-TELNO.
+V
+V            MOVE EAGEI
+V
+V              TO HV-AGE.
+V
+V
+V
+V       1000-UPDATE-DATA.
+V
+V            PERFORM 1000-EMPMAP-RECEIVE.
+V
+V            PERFORM 1000-MAPTODB.
+V
+V            EXEC SQL
+V
+V                 UPDATE EMP
+V
+V                    SET EMPNAME = :HV-EMPNAME,
+V
+V                        SALARY  = :HV-SALARY,
+V
+V                        PHONE   = :HV-PHONE,
+V
+V                        TELNO   = :HV-TELNO,
+V
+V                        AGE     = :HV-AGE
+V
+V                  WHERE EMPID   = :HV-EMPID
+V
+V            END-EXEC.
+V
+V
+V
+V            MOVE LOW-VALUES
+V
+V              TO EMSGO.
+V
+V            IF SQLCODE = 0 THEN
+V
+V               MOVE 'DATA UPDATED SUCCESSFULLY !!!'
+V
+V                 TO  EMSGO
+V
+V            ELSE
+V
+V               MOVE 'UPDATE ERROR !!!'
+V
+V                 TO  EMSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-EMPMAP-SEND.
+V
+V
+V
+V       1000-END-PGM.
+V
+V            EXEC CICS RETURN
+V
+V                 TRANSID('D184')
+V
+V            END-EXEC.
+V
+VMEMBER NAME  D18PGM4
+V       IDENTIFICATION DIVISION.
+V
+V       PROGRAM-ID. D18PGM4.
+V
+V
+V
+V      ***************************************************************
+V
+V      * EMPLOYEE DATA MANAGEMENT PORTAL - DB2
+V
+V      * TRANS ID USED : D184
+V
+V      * DB2 TABLE     : EMP
+V
+V      * MENU OPTION   : 1. SELECT DATA FROM TABLE
+V
+V      *                 2. INSERT DATA INTO TABLE
+V
+V      *                 3. UPDATE SELECTED DATA OF TABLE
+V
+V      *                 4. EXIT FROM PROGRAM
+V
+V      ***************************************************************
+V
+V
+V
+V       DATA DIVISION.
+V
+V       WORKING-STORAGE SECTION.
+V
+V           COPY D18MPS2.
+V
+V           COPY DFHBMSCA.
+V
+V
+V
+V       01 WS-SYSDATE          PIC S9(15) COMP-3.
+V
+V       01 WS-RESP             PIC S9(08) COMP.
+V
+V       01 WS-COMMAREA.
+V
+V          10 WS-CHOICE        PIC X(01).
+V
+V
+V
+V       LINKAGE SECTION.
+V
+V       01 DFHCOMMAREA.
+V
+V          10 LS-CHOICE        PIC X(01).
+V
+V
+V
+V       PROCEDURE DIVISION.
+V
+V       1000-MAIN-PARA.
+V
+V
+V
+V            MOVE LOW-VALUES
+V
+V              TO MENUMAPI MENUMAPO.
+V
+V            MOVE DFHCOMMAREA
+V
+V              TO WS-COMMAREA.
+V
+V
+V
+V            IF EIBCALEN = 0 THEN
+V
+V                 PERFORM 1000-MENU-SEND
+V
+V                 MOVE 'Y'
+V
+V                   TO WS-CHOICE
+V
+V                 PERFORM 1000-RET-PGM
+V
+V            ELSE
+V
+V                 PERFORM 1000-COMM-NONZERO
+V
+V            END-IF.
+V
+V            PERFORM 1000-END-PGM.
+V
+V
+V
+V       1000-COMM-NONZERO.
+V
+V            IF WS-CHOICE = 'Y' THEN
+V
+V               PERFORM 1000-MENU-RECEIVE
+V
+V            END-IF.
+V
+V            EVALUATE CHOICEI
+V
+V                WHEN '1'
+V
+V                     PERFORM 1000-VIEW-DATA
+V
+V                WHEN '2'
+V
+V                     PERFORM 1000-ADD-DATA
+V
+V                WHEN '3'
+V
+V                     PERFORM 1000-MODIFY-DATA
+V
+V                WHEN '4'
+V
+V                     MOVE LOW-VALUES
+V
+V                       TO MSGO
+V
+V                     MOVE 'THANK YOU !!!'
+V
+V                       TO MSGO
+V
+V                     EXEC CICS SEND
+V
+V                          MAP('MENUMAP')
+V
+V                          MAPSET('D18MPS2')
+V
+V                          ERASE
+V
+V                     END-EXEC
+V
+V                     PERFORM 1000-END-PGM
+V
+V            END-EVALUATE.
+V
+V
+V
+V       1000-MENU-SEND.
+V
+V            MOVE 'PROVIDE YOUR CHOICE !'
+V
+V              TO MSGO.
+V
+V            MOVE -1
+V
+V              TO CHOICEL.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('MENUMAP')
+V
+V                 MAPSET('D18MPS2')
+V
+V                 CURSOR
+V
+V                 ERASE
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-MENU-RECEIVE.
+V
+V            EXEC CICS RECEIVE
+V
+V                 MAP('MENUMAP')
+V
+V                 MAPSET('D18MPS2')
+V
+V                 RESP(WS-RESP)
+V
+V            END-EXEC.
+V
+V            IF WS-RESP NOT = DFHRESP(NORMAL) THEN
+V
+V               MOVE 'ENTER YOUR CHOICE!!!'
+V
+V                 TO MSGO
+V
+V               PERFORM 1000-MENU-SEND
+V
+V            END-IF.
+V
+V
+V
+V       1000-VIEW-DATA.
+V
+V            EXEC CICS XCTL
+V
+V                 PROGRAM('D18PGM1')
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-ADD-DATA.
+V
+V            EXEC CICS XCTL
+V
+V                 PROGRAM('D18PGM2')
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-MODIFY-DATA.
+V
+V            EXEC CICS XCTL
+V
+V                 PROGRAM('D18PGM3')
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-RET-PGM.
+V
+V            EXEC CICS RETURN
+V
+V                 TRANSID('D184')
+V
+V                 COMMAREA(WS-COMMAREA)
+V
+V                 LENGTH(LENGTH OF WS-COMMAREA)
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-END-PGM.
+V
+V            EXEC CICS
+V
+V                 RETURN
+V
+V            END-EXEC.
+V
+VMEMBER NAME  D18PGM5
+V       IDENTIFICATION DIVISION.
+V
+V       PROGRAM-ID. D18PGM1.
+V
+V
+V
+V      **************************************************************
+V
+V      * AUTHOR         : CHRISTY RAJ
+V
+V      * DATE WRITTEN   : 06 MAY 2021
+V
+V      * DEMO           : SELECT RECORD FROM EMP TABLE - CURSOR
+V
+V      *                  SEND TEXT ...SEND PAGE
+V
+V      *                  REPORT GENERATION
+V
+V      * DB2 TABLE      : EMP
+V
+V      *                  EMPID
+V
+V      *                  EMPNAME
+V
+V      *                  SALARY
+V
+V      *                  PHONE
+V
+V      *                  TELNO
+V
+V      *                  AGE
+V
+V      **************************************************************
+V
+V
+V
+V       DATA DIVISION.
+V
+V       WORKING-STORAGE SECTION.
+V
+V           EXEC SQL
+V
+V                INCLUDE EMPDCL
+V
+V           END-EXEC.
+V
+V
+V
+V           EXEC SQL
+V
+V                INCLUDE SQLCA
+V
+V           END-EXEC.
+V
+V
+V
+V           EXEC SQL
+V
+V                DECLARE EMPCUR CURSOR FOR
+V
+V                 SELECT EMPID, EMPNAME, SALARY
+V
+V                   FROM EMP
+V
+V           END-EXEC.
+V
+V
+V
+V           COPY D18MPS2.
+V
+V
+V
+V       01 WS-EMP-REC.
+V
+V          10 FILLER           PIC  X(15).
+V
+V          10 WS-EMPID         PIC  9(10).
+V
+V          10 FILLER           PIC  X(05).
+V
+V          10 WS-EMPNAME       PIC  X(15).
+V
+V          10 FILLER           PIC  X(05).
+V
+V          10 WS-SALARY        PIC  9(10).
+V
+V
+V
+V       01 WS-LINE-REC.
+V
+V          10 FILLER           PIC X(15).
+V
+V          10 WS-LINE          PIC X(45).
+V
+V          10 FILLER           PIC X(15).
+V
+V
+V
+V       01 WS-HEAD-REC.
+V
+V          10 FILLER           PIC X(15).
+V
+V          10 WS-HEAD          PIC X(45).
+V
+V          10 FILLER           PIC X(15).
+V
+V
+V
+V       01 WS-SYSDATE          PIC S9(15) COMP-3.
+V
+V       01 WS-RESP             PIC S9(08) COMP.
+V
+V       01 WS-SQLCODE          PIC +9(03) VALUE ZERO.
+V
+V
+V
+V       PROCEDURE DIVISION.
+V
+V       1000-MAIN-PARA.
+V
+V            MOVE LOW-VALUES
+V
+V              TO MSGMAPI MSGMAPO.
+V
+V            PERFORM 1000-TITLE.
+V
+V            PERFORM 1000-OPEN-EMPCUR.
+V
+V            PERFORM 1000-FETCH-EMPCUR
+V
+V              UNTIL SQLCODE = +100.
+V
+V            PERFORM 1000-CLOSE-EMPCUR.
+V
+V            PERFORM 1000-PAGE-SEND.
+V
+V            PERFORM 1000-END-PGM.
+V
+V
+V
+V       1000-CLEAR-SCREEN.
+V
+V            EXEC CICS SEND CONTROL
+V
+V                 ERASE
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-TITLE.
+V
+V            PERFORM 1000-CLEAR-SCREEN.
+V
+V
+V
+V            MOVE LOW-VALUES
+V
+V              TO WS-LINE-REC.
+V
+V            PERFORM 1000-LINE.
+V
+V
+V
+V            MOVE LOW-VALUES
+V
+V              TO WS-HEAD-REC.
+V
+V            MOVE '                  LIST OF EMPLOYEES'
+V
+V              TO  WS-HEAD.
+V
+V            PERFORM 1000-HEADER.
+V
+V
+V
+V            MOVE LOW-VALUES
+V
+V              TO WS-LINE-REC.
+V
+V            PERFORM 1000-LINE.
+V
+V
+V
+V            MOVE LOW-VALUES
+V
+V              TO WS-HEAD-REC.
+V
+V            MOVE 'EMPID               NAME           SALARY'
+V
+V              TO  WS-HEAD.
+V
+V            PERFORM 1000-HEADER.
+V
+V
+V
+V            MOVE '~~~~~               ~~~~           ~~~~~~'
+V
+V              TO  WS-HEAD.
+V
+V            PERFORM 1000-HEADER.
+V
+V
+V
+V       1000-LINE.
+V
+V            MOVE LOW-VALUES
+V
+V              TO WS-LINE-REC.
+V
+V            MOVE ALL '*'
+V
+V              TO WS-LINE.
+V
+V            EXEC CICS SEND TEXT
+V
+V                 FROM(WS-LINE-REC)
+V
+V                 LENGTH(LENGTH OF WS-LINE-REC)
+V
+V                 ACCUM
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-HEADER.
+V
+V            EXEC CICS SEND TEXT
+V
+V                 FROM(WS-HEAD-REC)
+V
+V                 LENGTH(LENGTH OF WS-HEAD-REC)
+V
+V                 ACCUM
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-DATA-SEND.
+V
+V            EXEC CICS SEND TEXT
+V
+V                 FROM(WS-EMP-REC)
+V
+V                 LENGTH(LENGTH OF WS-EMP-REC)
+V
+V                 ACCUM
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-PAGE-SEND.
+V
+V            EXEC CICS SEND
+V
+V                 PAGE
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-MSGMAP-SEND.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('MSGMAP')
+V
+V                 MAPSET('D18MPS2')
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-OPEN-EMPCUR.
+V
+V            EXEC SQL
+V
+V                 OPEN EMPCUR
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-FETCH-EMPCUR.
+V
+V            MOVE LOW-VALUES
+V
+V              TO DCLEMP WS-EMP-REC.
+V
+V            EXEC SQL
+V
+V                 FETCH  EMPCUR
+V
+V                  INTO  :HV-EMPID,
+V
+V                        :HV-EMPNAME,
+V
+V                        :HV-SALARY
+V
+V            END-EXEC.
+V
+V
+V
+V            MOVE LOW-VALUES
+V
+V              TO EMSGO.
+V
+V            IF SQLCODE = 0  THEN
+V
+V               PERFORM 1000-DBTOMAP
+V
+V               PERFORM 1000-DATA-SEND
+V
+V               MOVE 'EMPLOYEE DETAILS FETCHED !!!'
+V
+V                 TO MMSGO
+V
+V            ELSE IF SQLCODE = +100 THEN
+V
+V               MOVE 'END OF THE TABLE !!!'
+V
+V                 TO MMSGO
+V
+V            ELSE
+V
+V               MOVE 'ERROR IN FETCH CURSOR!'
+V
+V                 TO MMSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-MSGMAP-SEND.
+V
+V
+V
+V       1000-DBTOMAP.
+V
+V            MOVE HV-EMPID
+V
+V              TO WS-EMPID.
+V
+V            MOVE HV-EMPNAME-TEXT
+V
+V              TO WS-EMPNAME.
+V
+V            MOVE HV-SALARY
+V
+V              TO WS-SALARY.
+V
+V
+V
+V       1000-CLOSE-EMPCUR.
+V
+V            EXEC SQL
+V
+V                 CLOSE EMPCUR
+V
+V            END-EXEC.
+V
+V
+V
+V       1000-END-PGM.
+V
+V            EXEC CICS
+V
+V                 RETURN
+V
+V            END-EXEC.
+V
+VMEMBER NAME  EMP
+V       IDENTIFICATION DIVISION.
+V
+V       PROGRAM-ID. D18PGM1.
+V
+V      ***************************************************************
+V
+V      * EMPLOYEE DATA MANAGEMENT PORTAL
+V
+V      * TRANS ID USED : D181
+V
+V      * VSAM CLUSTER  : CAPGD18.COBOL.KSDS.CLUS
+V
+V      * FILE ID       : D18FIL1
+V
+V      *
+V
+V      ***************************************************************
+V
+V       DATA DIVISION.
+V
+V       WORKING-STORAGE SECTION.
+V
+V           COPY D18MPS1.
+V
+V           COPY DFHBMSCA.
+V
+V       01 WS-MSG              PIC  X(30).
+V
+V       01 WS-REC.
+V
+V          10 WS-EMPID         PIC  X(05).
+V
+V          10 WS-EMPNAME       PIC  X(15).
+V
+V          10 FILLER           PIC  X(60).
+V
+V       01 WS-SYSDATE          PIC S9(15) COMP-3.
+V
+V       01 WS-RESP             PIC S9(08) COMP.
+V
+V       01 WS-COMMAREA.
+V
+V          10 WS-CHOICE        PIC X(01).
+V
+V          10 WS-DATE          PIC X(10).
+V
+V          10 WS-TIME          PIC X(08).
+V
+V       LINKAGE SECTION.
+V
+V       01 DFHCOMMAREA.
+V
+V          10 LS-CHOICE        PIC X(01).
+V
+V          10 LS-DATE          PIC X(10).
+V
+V          10 LS-TIME          PIC X(08).
+V
+V       PROCEDURE DIVISION.
+V
+V       1000-MAIN-PARA.
+V
+V            MOVE LOW-VALUES
+V
+V              TO WELMAPI WELMAPO
+V
+V                 MSGMAPI MSGMAPO.
+V
+V            MOVE DFHCOMMAREA
+V
+V              TO WS-COMMAREA.
+V
+V            IF EIBCALEN = 0 THEN
+V
+V                 PERFORM 1000-DATE-CALC
+V
+V                 PERFORM 1000-DATE-SEND
+V
+V                 PERFORM 1000-MENU-SEND
+V
+V                 MOVE 'ENTER YOUR CHOICE !'
+V
+V                   TO MSGO
+V
+V                 PERFORM 1000-MSG-SEND
+V
+V                 MOVE 'Y'
+V
+V                   TO WS-CHOICE
+V
+V                 PERFORM 1000-RET-PGM
+V
+V            ELSE
+V
+V                 PERFORM 1000-COMM-NONZERO
+V
+V            END-IF.
+V
+V            PERFORM 1000-END-PGM.
+V
+V       1000-COMM-NONZERO.
+V
+V            IF WS-CHOICE = 'Y' THEN
+V
+V               PERFORM 1000-MENU-RECEIVE
+V
+V            END-IF.
+V
+V            IF WS-CHOICE = 'W' THEN
+V
+V               PERFORM 1000-RECEIVE
+V
+V            END-IF.
+V
+V            EVALUATE WS-CHOICE
+V
+V                WHEN '1'
+V
+V                     PERFORM 1000-EMP-RECEIVE
+V
+V                     PERFORM 1000-FILE-READ
+V
+V                WHEN '2'
+V
+V                     PERFORM 1000-EMP-RECEIVE
+V
+V                     PERFORM 1000-FILE-WRITE
+V
+V                WHEN '3'
+V
+V                     PERFORM 1000-EMP-RECEIVE
+V
+V                     PERFORM 1000-FILE-READ-UPDATE
+V
+V                WHEN 'M'
+V
+V                     MOVE LOW-VALUES
+V
+V                       TO EMPMAPI EMPMAPO
+V
+V                     MOVE LOW-VALUES
+V
+V                       TO WS-REC
+V
+V                     PERFORM 1000-EMP-RECEIVE
+V
+V                     PERFORM 1000-FILE-REWRITE
+V
+V                WHEN '4'
+V
+V                     PERFORM 1000-EMP-RECEIVE
+V
+V                     PERFORM 1000-FILE-DELETE
+V
+V                WHEN '5'
+V
+V                     PERFORM 1000-BYE-SEND
+V
+V                     PERFORM 1000-END-PGM
+V
+V            END-EVALUATE.
+V
+V       1000-DATE-CALC.
+V
+V            EXEC CICS ASKTIME
+V
+V                 ABSTIME(WS-SYSDATE)
+V
+V            END-EXEC.
+V
+V            EXEC CICS FORMATTIME
+V
+V                 ABSTIME(WS-SYSDATE)
+V
+V                 YYYYMMDD(WS-DATE)
+V
+V                 DATESEP('/')
+V
+V                 TIME(WS-TIME)
+V
+V                 TIMESEP(':')
+V
+V            END-EXEC.
+V
+V       1000-DATE-SEND.
+V
+V            MOVE WS-DATE
+V
+V              TO SDATEO.
+V
+V            MOVE WS-TIME
+V
+V              TO STIMEO.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('WELMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V                 ERASE
+V
+V            END-EXEC.
+V
+V       1000-MENU-SEND.
+V
+V            MOVE -1
+V
+V              TO CHOICEL.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('MENUMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V                 CURSOR
+V
+V            END-EXEC.
+V
+V       1000-EMP-SEND.
+V
+V            MOVE -1
+V
+V              TO EMPIDL.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('EMPMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V                 CURSOR
+V
+V            END-EXEC.
+V
+V       1000-MSG-SEND.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('MSGMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V            END-EXEC.
+V
+V       1000-BYE-SEND.
+V
+V            EXEC CICS SEND
+V
+V                 MAP('BYEMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V            END-EXEC.
+V
+V       1000-MENU-RECEIVE.
+V
+V            EXEC CICS RECEIVE
+V
+V                 MAP('MENUMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V                 RESP(WS-RESP)
+V
+V            END-EXEC.
+V
+V            IF WS-RESP = DFHRESP(NORMAL) THEN
+V
+V               PERFORM 1000-PROCESS-CHOICE
+V
+V            ELSE
+V
+V               MOVE 'ENTER YOUR CHOICE!!!'
+V
+V                 TO MSGO
+V
+V               PERFORM 1000-MSG-SEND
+V
+V            END-IF.
+V
+V       1000-EMP-RECEIVE.
+V
+V            EXEC CICS RECEIVE
+V
+V                 MAP('EMPMAP')
+V
+V                 MAPSET('D18MPS1')
+V
+V                 RESP(WS-RESP)
+V
+V            END-EXEC.
+V
+V            IF WS-RESP = DFHRESP(NORMAL) THEN
+V
+V               MOVE EMPIDI
+V
+V                 TO WS-EMPID
+V
+V               MOVE ENAMEI
+V
+V                 TO WS-EMPNAME
+V
+V            ELSE
+V
+V               MOVE 'ENTER YOUR EMPLOYEE ID !'
+V
+V                 TO MSGO
+V
+V               PERFORM 1000-MSG-SEND
+V
+V            END-IF.
+V
+V       1000-RECEIVE.
+V
+V            EXEC CICS
+V
+V                 RECEIVE
+V
+V            END-EXEC.
+V
+V            MOVE 'Y'
+V
+V              TO WS-CHOICE.
+V
+V            PERFORM 1000-DATE-SEND.
+V
+V            PERFORM 1000-MENU-SEND.
+V
+V            PERFORM 1000-RET-PGM.
+V
+V       1000-PROCESS-CHOICE.
+V
+V            EVALUATE CHOICEI
+V
+V                WHEN '1'
+V
+V                     PERFORM 1000-DATE-SEND
+V
+V                     MOVE LOW-VALUES
+V
+V                       TO EMPMAPI EMPMAPO
+V
+V                     PERFORM 1000-EMP-SEND
+V
+V                     MOVE 'ENTER THE EMPLOYEE ID !'
+V
+V                       TO MSGO
+V
+V                     PERFORM 1000-MSG-SEND
+V
+V                     MOVE '1'
+V
+V                       TO WS-CHOICE
+V
+V                     PERFORM 1000-RET-PGM
+V
+V                WHEN '2'
+V
+V                     PERFORM 1000-DATE-SEND
+V
+V                     MOVE LOW-VALUES
+V
+V                       TO EMPMAPI EMPMAPO
+V
+V                     PERFORM 1000-EMP-SEND
+V
+V                     MOVE 'ENTER NEW EMPLOYEE DETAILS!'
+V
+V                       TO MSGO
+V
+V                     PERFORM 1000-MSG-SEND
+V
+V                     MOVE '2'
+V
+V                       TO WS-CHOICE
+V
+V                     PERFORM 1000-RET-PGM
+V
+V                WHEN '3'
+V
+V                     PERFORM 1000-DATE-SEND
+V
+V                     MOVE LOW-VALUES
+V
+V                       TO EMPMAPI EMPMAPO
+V
+V                     PERFORM 1000-EMP-SEND
+V
+V                     MOVE 'ENTER THE EMPLOYEE ID !'
+V
+V                       TO MSGO
+V
+V                     PERFORM 1000-MSG-SEND
+V
+V                     MOVE '3'
+V
+V                       TO WS-CHOICE
+V
+V                     PERFORM 1000-RET-PGM
+V
+V                WHEN '4'
+V
+V                     PERFORM 1000-DATE-SEND
+V
+V                     MOVE LOW-VALUES
+V
+V                       TO EMPMAPI EMPMAPO
+V
+V                     PERFORM 1000-EMP-SEND
+V
+V                     MOVE 'ENTER THE EMPLOYEE ID !'
+V
+V                       TO MSGO
+V
+V                     PERFORM 1000-MSG-SEND
+V
+V                     MOVE '4'
+V
+V                       TO WS-CHOICE
+V
+V                     PERFORM 1000-RET-PGM
+V
+V                WHEN '5'
+V
+V                     PERFORM 1000-BYE-SEND
+V
+V                     PERFORM 1000-END-PGM
+V
+V            END-EVALUATE.
+V
+V       1000-FILE-READ.
+V
+V            PERFORM 1000-DATE-SEND.
+V
+V            EXEC CICS READ
+V
+V                 FILE('D18FIL1')
+V
+V                 INTO(WS-REC)
+V
+V                 LENGTH(LENGTH OF WS-REC)
+V
+V                 RIDFLD(WS-EMPID)
+V
+V                 RESP(WS-RESP)
+V
+V            END-EXEC.
+V
+V            IF WS-RESP = DFHRESP(NORMAL) THEN
+V
+V               MOVE WS-EMPID
+V
+V                 TO EMPIDO
+V
+V               MOVE WS-EMPNAME
+V
+V                 TO ENAMEO
+V
+V               PERFORM 1000-EMP-SEND
+V
+V               MOVE 'EMPLOYEE DETAILS GOT SUCCESSFULLY!'
+V
+V                 TO MSGO
+V
+V            ELSE IF WS-RESP = DFHRESP(NOTFND) THEN
+V
+V               MOVE 'RECORD NOT FOUND!'
+V
+V                 TO MSGO
+V
+V            ELSE
+V
+V               MOVE 'FILE READ ERROR !'
+V
+V                 TO MSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            MOVE 'W'
+V
+V              TO WS-CHOICE
+V
+V            PERFORM 1000-RET-PGM.
+V
+V       1000-FILE-WRITE.
+V
+V            MOVE EMPIDI
+V
+V              TO WS-EMPID.
+V
+V            MOVE ENAMEI
+V
+V              TO WS-EMPNAME.
+V
+V            PERFORM 1000-DATE-SEND.
+V
+V            EXEC CICS WRITE
+V
+V                 FILE('D18FIL1')
+V
+V                 FROM(WS-REC)
+V
+V                 LENGTH(LENGTH OF WS-REC)
+V
+V                 RIDFLD(WS-EMPID)
+V
+V                 RESP(WS-RESP)
+V
+V            END-EXEC.
+V
+V            MOVE LOW-VALUES
+V
+V              TO MSGO.
+V
+V            IF WS-RESP = DFHRESP(NORMAL) THEN
+V
+V               MOVE 'EMPLOYEE DETAILS ADDED SUCCESSFULLY!'
+V
+V                 TO MSGO
+V
+V            ELSE
+V
+V               MOVE 'FILE WRITE ERROR !'
+V
+V                 TO MSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            MOVE 'W'
+V
+V              TO WS-CHOICE
+V
+V            PERFORM 1000-RET-PGM.
+V
+V       1000-FILE-READ-UPDATE.
+V
+V            PERFORM 1000-DATE-SEND.
+V
+V            EXEC CICS READ
+V
+V                 FILE('D18FIL1')
+V
+V                 INTO(WS-REC)
+V
+V                 LENGTH(LENGTH OF WS-REC)
+V
+V                 RIDFLD(WS-EMPID)
+V
+V                 UPDATE
+V
+V                 RESP(WS-RESP)
+V
+V            END-EXEC.
+V
+V            IF WS-RESP = DFHRESP(NORMAL) THEN
+V
+V               MOVE WS-EMPID
+V
+V                 TO EMPIDO
+V
+V               MOVE WS-EMPNAME
+V
+V                 TO ENAMEO
+V
+V      *        MOVE DFHBMPRO
+V
+V      *          TO EMPIDA
+V
+V      *        MOVE DFHBMUNP
+V
+V      *          TO ENAMEA
+V
+V               PERFORM 1000-EMP-SEND
+V
+V               MOVE 'EMPLOYEE DETAILS TO BE UPDATED!'
+V
+V                 TO MSGO
+V
+V            ELSE IF WS-RESP = DFHRESP(NOTFND) THEN
+V
+V               MOVE 'RECORD NOT FOUND!'
+V
+V                 TO MSGO
+V
+V            ELSE
+V
+V               MOVE 'FILE READ ERROR !'
+V
+V                 TO MSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            MOVE 'M'
+V
+V              TO WS-CHOICE.
+V
+V            PERFORM 1000-RET-PGM.
+V
+V       1000-FILE-REWRITE.
+V
+V            MOVE EMPIDI
+V
+V              TO WS-EMPID.
+V
+V            MOVE ENAMEI
+V
+V              TO WS-EMPNAME.
+V
+V            PERFORM 1000-DATE-SEND.
+V
+V            EXEC CICS REWRITE
+V
+V                 FILE('D18FIL1')
+V
+V                 FROM(WS-REC)
+V
+V                 LENGTH(LENGTH OF WS-REC)
+V
+V                 RESP(WS-RESP)
+V
+V            END-EXEC.
+V
+V            MOVE LOW-VALUES
+V
+V              TO MSGO.
+V
+V            IF WS-RESP = DFHRESP(NORMAL) THEN
+V
+V               MOVE 'EMPLOYEE DETAILS UPDATED SUCCESSFULLY!'
+V
+V                 TO MSGO
+V
+V            ELSE
+V
+V               MOVE 'FILE REWRITE ERROR !'
+V
+V                 TO MSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-DATE-SEND.
+V
+V            PERFORM 1000-EMP-SEND.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            MOVE 'W'
+V
+V              TO WS-CHOICE
+V
+V            PERFORM 1000-RET-PGM.
+V
+V       1000-FILE-DELETE.
+V
+V            MOVE EMPIDI
+V
+V              TO WS-EMPID.
+V
+V            PERFORM 1000-DATE-SEND.
+V
+V            EXEC CICS DELETE
+V
+V                 FILE('D18FIL1')
+V
+V                 RIDFLD(WS-EMPID)
+V
+V                 RESP(WS-RESP)
+V
+V            END-EXEC.
+V
+V            MOVE LOW-VALUES
+V
+V              TO MSGO.
+V
+V            IF WS-RESP = DFHRESP(NORMAL) THEN
+V
+V               MOVE 'EMPLOYEE DETAILS DELETED !'
+V
+V                 TO MSGO
+V
+V            ELSE IF WS-RESP = DFHRESP(NOTFND) THEN
+V
+V               MOVE 'RECORD NOT FOUND!'
+V
+V                 TO MSGO
+V
+V            ELSE
+V
+V               MOVE 'FILE DELETE ERROR !'
+V
+V                 TO MSGO
+V
+V            END-IF.
+V
+V            PERFORM 1000-MSG-SEND.
+V
+V            MOVE 'W'
+V
+V              TO WS-CHOICE
+V
+V            PERFORM 1000-RET-PGM.
+V
+V       1000-RET-PGM.
+V
+V            EXEC CICS RETURN
+V
+V                 TRANSID('D184')
+V
+V                 COMMAREA(WS-COMMAREA)
+V
+V                 LENGTH(LENGTH OF WS-COMMAREA)
+V
+V            END-EXEC.
+V
+V       1000-END-PGM.
+V
+V            EXEC CICS
+V
+V                 RETURN
+V
+V            END-EXEC.
+V
+VMEMBER NAME  MAPJCL
+V//CAPGD18D JOB (529),'ASSEMBLE MAP',CLASS=A,MSGCLASS=A,
+V
+V//             MSGLEVEL=(1,1),NOTIFY=&SYSUID
+V
+V//PLIB    JCLLIB ORDER=(MATE1.PROCLIB)
+V
+V//*
+V
+V//* TO ASSEMBLE CICS BMS MAP
+V
+V//*
+V
+V//CICSMAP  EXEC DFHMAPS,
+V
+V//         COPYLIB=CAPGD18.COPYLIB,       <= SYMBOLIC MAP COPY LIBRARY
+V
+V//         SRCLIB=CAPGD18.CICS.SRCLIB,    <= SOURCE LIBRARY
+V
+V//         MEMBER=D18MPS2                 <= MAP MEMBER NAME
+V
+V//
+V
+
